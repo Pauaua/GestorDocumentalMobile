@@ -1,8 +1,9 @@
-# RTLCO
+# RTLCO: Respaldo con Trazabilidad Legal de las Comunicaciones Oficiales
 
-Plataforma para que los colegios publiquen, distribuyan y respalden sus documentos oficiales (citaciones, actas,
-oficios, memos, permisos) con **acuse de recibo**, avisos por correo y push, y control de acceso por rol.
-Funciona como servicio para muchos colegios (multi-tenant) en web, iOS y Android.
+RTLCO respalda las comunicaciones oficiales de los colegios (citaciones, actas, oficios, memos, permisos) y deja
+constancia verificable de cada una: quién la publicó, a quién se dirigió, cuándo la abrió cada destinatario y quién
+confirmó haberla recibido. Combina **acuse de recibo**, avisos por correo y push, control de acceso por rol y una
+bitácora de auditoría. Funciona como servicio para muchos colegios (multi-tenant) en web, iOS y Android.
 
 | Carpeta | Contenido |
 |---|---|
@@ -69,3 +70,11 @@ cd tests && pytest selenium_test_gestor_documental.py --base-url http://demo.loc
 
 **Push en la app:** requiere un development build y vincular el proyecto a EAS (`npx eas-cli@latest init`, que
 agrega `extra.eas.projectId` a `app.json`). Sin eso, los avisos llegan igual a la bandeja y por correo.
+
+## Declaración de uso de inteligencia artificial
+
+La idea, el diseño y el código base de RTLCO son de mi autoría. Durante el desarrollo usé un asistente de
+inteligencia artificial como herramienta complementaria (Claude de Anthropic), para avanzar más rápido en tareas de implementación, apoyar
+la escritura y ejecución de pruebas, y revisar el código. Las decisiones sobre el producto y la arquitectura, y la
+validación final de cada cambio, quedaron a mi cargo.
+
