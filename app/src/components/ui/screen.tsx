@@ -68,6 +68,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   innerWide: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  headerText: { flex: 1, gap: 2 },
+  // Si el título y la acción de la derecha no caben juntos, la acción baja a la línea siguiente.
+  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  headerText: { flexGrow: 1, flexShrink: 1, flexBasis: 200, gap: 2 },
 });

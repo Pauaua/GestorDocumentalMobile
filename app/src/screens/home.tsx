@@ -28,7 +28,9 @@ function QuickAction({ icon: Icon, label, onPress, testID, tint }: { icon: Lucid
       <View style={[styles.actionIcon, { backgroundColor: tint }]}>
         <Icon size={22} color={colors.text} strokeWidth={1.6} />
       </View>
-      <AppText variant="bodyStrong">{label}</AppText>
+      <AppText variant="bodyStrong" style={styles.shrink}>
+        {label}
+      </AppText>
     </Pressable>
   );
 }
@@ -117,7 +119,7 @@ export function HomeScreen() {
                     style={({ pressed }) => [styles.stat, pressed && styles.pressed]}
                   >
                     <DocumentTypeIcon code={t.code} size={40} />
-                    <View>
+                    <View style={styles.shrink}>
                       <AppText variant="title">{t.count}</AppText>
                       <AppText variant="caption">{t.name}</AppText>
                     </View>
@@ -190,5 +192,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  shrink: { flexShrink: 1 },
   pressed: { opacity: 0.8 },
 });

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
+import { useIsCompact } from '@/hooks/use-responsive';
 import { errorMessage } from '@/lib/api/client';
 import { authApi, schoolApi } from '@/lib/api/endpoints';
 import { APP_NAME } from '@/lib/config';
@@ -216,6 +217,7 @@ function CredentialsStep({ onForgot }: { onForgot: () => void }) {
 }
 
 export function LoginScreen() {
+  const compact = useIsCompact();
   const slug = useSchool((s) => s.slug);
   const fixed = useSchool((s) => s.fixed);
   const clearSlug = useSchool((s) => s.clearSlug);
@@ -225,8 +227,8 @@ export function LoginScreen() {
   return (
     <LinearGradient colors={[...gradient]} style={styles.fill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.card} testID="login-screen">
+        <ScrollView contentContainerStyle={[styles.scroll, compact && styles.scrollCompact]} keyboardShouldPersistTaps="handled">
+          <View style={[styles.card, compact && styles.cardCompact]} testID="login-screen">
             <View style={styles.logo}>
               <FolderLock size={34} color={colors.secondaryStrong} strokeWidth={1.5} />
             </View>
@@ -265,6 +267,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  scrollCompact: { padding: spacing.sm },
   card: {
     width: '100%',
     maxWidth: 420,
@@ -274,6 +277,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     ...shadows.raised,
   },
+  cardCompact: { padding: spacing.lg },
   logo: {
     alignSelf: 'center',
     width: 72,

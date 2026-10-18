@@ -29,11 +29,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     gap: 5,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: radius.pill,
   },
-  label: { fontFamily: fonts.bold, fontSize: 12 },
+  label: { fontFamily: fonts.bold, fontSize: 12, flexShrink: 1 },
   icon: { borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

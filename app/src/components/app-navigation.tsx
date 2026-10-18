@@ -47,7 +47,12 @@ const NavButton = forwardRef<RNView, NavButtonProps>(function NavButton({ item, 
           </View>
         )}
       </View>
+      {/* Con seis pestañas en un teléfono angosto la etiqueta se achica en vez de cortarse. */}
       <AppText
+        numberOfLines={1}
+        adjustsFontSizeToFit={!wide}
+        minimumFontScale={0.75}
+        maxFontSizeMultiplier={wide ? undefined : 1.15}
         style={[wide ? styles.sideLabel : styles.bottomLabel, { color: isFocused ? colors.secondaryStrong : colors.textSecondary }]}
       >
         {item.label}
@@ -131,13 +136,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: spacing.xs,
+    paddingHorizontal: spacing.xxs,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  bottomItem: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.xxs, borderRadius: radius.md },
+  bottomItem: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: 2,
+    borderRadius: radius.md,
+  },
   bottomItemActive: { backgroundColor: colors.secondarySoft },
-  bottomLabel: { fontFamily: fonts.semibold, fontSize: 11 },
+  bottomLabel: { fontFamily: fonts.semibold, fontSize: 11, maxWidth: '100%' },
   sidebar: {
     width: layout.sidebarWidth,
     flexDirection: 'column',

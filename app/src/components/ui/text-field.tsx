@@ -1,7 +1,7 @@
 import { Eye, EyeOff, type LucideIcon } from 'lucide-react-native';
 import { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
-import { colors, fonts, radius, spacing } from '@/theme';
+import { colors, fonts, layout, radius, spacing } from '@/theme';
 import { AppText } from './app-text';
 
 interface TextFieldProps extends TextInputProps {
@@ -32,6 +32,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         {Icon && <Icon size={18} color={colors.textMuted} strokeWidth={1.75} />}
         <TextInput
           ref={ref}
+          maxFontSizeMultiplier={layout.maxFontScale}
           {...props}
           testID={testID}
           accessibilityLabel={props.accessibilityLabel ?? label}

@@ -64,6 +64,13 @@ export const shadows = {
 export const layout = {
   /** Ancho desde el que la web muestra barra lateral en vez de tabs inferiores. */
   wideBreakpoint: 900,
+  /** Ancho bajo el que un teléfono se considera angosto. */
+  compactBreakpoint: 380,
+  /**
+   * Tope de agrandamiento del texto con la letra grande del sistema: se respeta la preferencia,
+   * pero sin que botones y filas se desarmen.
+   */
+  maxFontScale: 1.3,
   maxContentWidth: 1080,
   sidebarWidth: 248,
 } as const;

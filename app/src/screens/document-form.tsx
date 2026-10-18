@@ -248,7 +248,7 @@ export function DocumentForm({ mode, initial, onSubmit, progress }: DocumentForm
             {status === 'ARCHIVADO' && (
               <View style={styles.hint}>
                 <Archive size={14} color={colors.warningStrong} strokeWidth={1.75} />
-                <AppText variant="caption" color="warningStrong">
+                <AppText variant="caption" color="warningStrong" style={styles.hintText}>
                   Los documentos archivados solo los ve el equipo directivo.
                 </AppText>
               </View>
@@ -290,7 +290,7 @@ export function DocumentForm({ mode, initial, onSubmit, progress }: DocumentForm
           />
           <View style={styles.hint}>
             <BadgeCheck size={14} color={colors.textSecondary} strokeWidth={1.75} />
-            <AppText variant="caption">
+            <AppText variant="caption" style={styles.hintText}>
               Cada destinatario deberá confirmar que lo recibió; verás quién lo abrió y quién confirmó.
             </AppText>
           </View>
@@ -325,6 +325,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   folio: { flex: 1, minWidth: 180 },
-  hint: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
+  hint: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xxs },
+  hintText: { flex: 1 },
   progress: { gap: spacing.xs },
 });

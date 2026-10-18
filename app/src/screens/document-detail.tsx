@@ -45,7 +45,7 @@ function DownloadsLog({ doc }: { doc: DocumentItem }) {
       ) : logs.data?.length ? (
         logs.data.map((log) => (
           <View key={log.id} style={styles.logRow}>
-            <View style={styles.flex}>
+            <View style={styles.logPerson}>
               <AppText variant="bodyStrong">{log.user.fullName}</AppText>
               <AppText variant="caption">
                 {ROLE_LABELS[log.user.role]}
@@ -237,7 +237,7 @@ export function DocumentDetailScreen({ id }: { id: string }) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  logPerson: { flexGrow: 1, flexShrink: 1, flexBasis: 160 },
   titleBlock: { gap: spacing.xs },
   tags: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   status: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
@@ -249,7 +249,9 @@ const styles = StyleSheet.create({
   recipients: { gap: spacing.xxs, marginTop: spacing.sm },
   logRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    rowGap: spacing.xxs,
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,

@@ -33,7 +33,7 @@ export function AcknowledgeCard({ doc }: { doc: DocumentItem }) {
 
   return (
     <Card style={styles.ackCard} testID="document-ack-pending">
-      <View style={styles.flex}>
+      <View style={styles.ackText}>
         <AppText variant="bodyStrong">El colegio pide que confirmes que recibiste este documento</AppText>
         <AppText variant="caption">Al confirmar queda registrada la fecha y hora de tu confirmación.</AppText>
       </View>
@@ -78,7 +78,7 @@ export function ReceiptsReport({ doc }: { doc: DocumentItem }) {
             const Icon = confirmed ? BadgeCheck : Eye;
             return (
               <View key={item.user.id} style={styles.row}>
-                <View style={styles.flex}>
+                <View style={styles.person}>
                   <AppText variant="bodyStrong">{item.user.fullName}</AppText>
                   <AppText variant="caption">
                     {ROLE_LABELS[item.user.role]}
@@ -88,7 +88,7 @@ export function ReceiptsReport({ doc }: { doc: DocumentItem }) {
                 {item.viewedAt ? (
                   <View style={styles.status}>
                     <Icon size={14} color={confirmed ? colors.successStrong : colors.textSecondary} strokeWidth={1.75} />
-                    <AppText variant="caption" color={confirmed ? 'successStrong' : 'textSecondary'}>
+                    <AppText variant="caption" color={confirmed ? 'successStrong' : 'textSecondary'} style={styles.shrink}>
                       {confirmed ? `Confirmó ${formatDateTime(item.acknowledgedAt!)}` : `Abrió ${formatDateTime(item.viewedAt)}`}
                     </AppText>
                   </View>
@@ -108,15 +108,21 @@ export function ReceiptsReport({ doc }: { doc: DocumentItem }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, gap: 2 },
+  shrink: { flexShrink: 1 },
   ackCard: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md },
+  // Con base propia (no flex: 1) el botón baja bajo el texto cuando no caben juntos.
+  ackText: { flexGrow: 1, flexShrink: 1, flexBasis: 220, gap: 2 },
   ackDone: { backgroundColor: colors.success },
+  person: { flexGrow: 1, flexShrink: 1, flexBasis: 160, gap: 2 },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    rowGap: spacing.xxs,
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs, borderRadius: radius.pill },
+  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs, maxWidth: '100%', borderRadius: radius.pill },
 });

@@ -64,7 +64,7 @@ export function AudiencePicker({ visibleRoles, onChangeRoles, recipients, onChan
                 onPress={() => onChangeRecipients(recipients.filter((x) => x.id !== r.id))}
                 style={styles.selected}
               >
-                <AppText variant="caption" color="primaryStrong">
+                <AppText variant="caption" color="primaryStrong" style={styles.shrink}>
                   {r.fullName} · {ROLE_LABELS[r.role]}
                 </AppText>
                 <X size={14} color={colors.primaryStrong} strokeWidth={2} />
@@ -131,8 +131,10 @@ const styles = StyleSheet.create({
   container: { gap: spacing.lg },
   section: { gap: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xxs },
+  shrink: { flexShrink: 1 },
   selected: {
     flexDirection: 'row',
+    maxWidth: '100%',
     alignItems: 'center',
     gap: spacing.xxs,
     paddingHorizontal: spacing.sm,

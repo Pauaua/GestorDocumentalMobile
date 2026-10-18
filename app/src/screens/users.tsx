@@ -157,7 +157,7 @@ function UserRow({ user, isSelf }: { user: Member; isSelf: boolean }) {
               .join('')}
           </AppText>
         </View>
-        <View style={styles.flex}>
+        <View style={styles.person}>
           <AppText variant="bodyStrong">
             {user.fullName}
             {isSelf ? ' (tú)' : ''}
@@ -281,6 +281,7 @@ export function UsersScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 140 },
+  person: { flex: 1, gap: 2 },
   form: { gap: spacing.md },
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
@@ -299,5 +300,5 @@ const styles = StyleSheet.create({
   },
   badge: { paddingHorizontal: spacing.xs, paddingVertical: 2, borderRadius: radius.pill, backgroundColor: colors.dangerSoft },
   rowPanel: { gap: spacing.sm, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
 });

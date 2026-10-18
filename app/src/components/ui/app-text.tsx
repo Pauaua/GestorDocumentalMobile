@@ -1,5 +1,5 @@
 import { StyleSheet, Text, type TextProps } from 'react-native';
-import { colors, typography, type ColorToken, type TypographyVariant } from '@/theme';
+import { colors, layout, typography, type ColorToken, type TypographyVariant } from '@/theme';
 
 interface AppTextProps extends TextProps {
   variant?: TypographyVariant;
@@ -10,6 +10,7 @@ interface AppTextProps extends TextProps {
 export function AppText({ variant = 'body', color, align, style, ...props }: AppTextProps) {
   return (
     <Text
+      maxFontSizeMultiplier={layout.maxFontScale}
       {...props}
       style={[typography[variant], color && { color: colors[color] }, align && { textAlign: align }, style]}
     />

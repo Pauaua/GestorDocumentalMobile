@@ -65,7 +65,9 @@ export function Button({
         ) : (
           Icon && <Icon size={18} color={v.fg} strokeWidth={1.75} />
         )}
-        <AppText style={[styles.label, { color: v.fg }]}>{label}</AppText>
+        <AppText style={[styles.label, { color: v.fg }]} align="center">
+          {label}
+        </AppText>
       </View>
     </Pressable>
   );
@@ -74,6 +76,7 @@ export function Button({
 const styles = StyleSheet.create({
   base: {
     minHeight: 48,
+    maxWidth: '100%',
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     justifyContent: 'center',
@@ -82,6 +85,7 @@ const styles = StyleSheet.create({
   compact: { minHeight: 40, paddingHorizontal: spacing.md, borderRadius: radius.sm },
   fullWidth: { alignSelf: 'stretch' },
   disabled: { opacity: 0.55 },
-  content: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  label: { fontFamily: fonts.bold, fontSize: 15 },
+  // En pantallas angostas la etiqueta larga pasa a dos líneas en vez de salirse del botón.
+  content: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1, paddingVertical: spacing.xxs },
+  label: { fontFamily: fonts.bold, fontSize: 15, flexShrink: 1 },
 });

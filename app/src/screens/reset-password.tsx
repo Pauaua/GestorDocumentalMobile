@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TextField } from '@/components/ui/text-field';
 import { toast } from '@/components/ui/toast';
+import { useIsCompact } from '@/hooks/use-responsive';
 import { errorMessage } from '@/lib/api/client';
 import { authApi } from '@/lib/api/endpoints';
 import { signOut } from '@/lib/session/actions';
@@ -20,6 +21,7 @@ const validPassword = (v: string) => v.length >= 8 && /[A-Za-z]/.test(v) && /\d/
 
 /** Enlace del correo de invitación o de recuperación: /reset-password?token=... */
 export function ResetPasswordScreen() {
+  const compact = useIsCompact();
   const { token = '' } = useLocalSearchParams<{ token?: string }>();
   const signedIn = useSession((s) => s.status === 'authenticated');
   const info = useQuery({ queryKey: ['password-token', token], queryFn: () => authApi.passwordToken(token), enabled: !!token, retry: false });
@@ -51,8 +53,8 @@ export function ResetPasswordScreen() {
   return (
     <LinearGradient colors={[...gradient]} style={styles.fill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.card} testID="reset-screen">
+        <ScrollView contentContainerStyle={[styles.scroll, compact && styles.scrollCompact]} keyboardShouldPersistTaps="handled">
+          <View style={[styles.card, compact && styles.cardCompact]} testID="reset-screen">
             {!token || info.isError ? (
               <EmptyState
                 testID="reset-invalid"
@@ -111,6 +113,7 @@ export function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
+  scrollCompact: { padding: spacing.sm },
   card: {
     width: '100%',
     maxWidth: 420,
@@ -120,6 +123,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     ...shadows.raised,
   },
+  cardCompact: { padding: spacing.lg },
   logo: {
     alignSelf: 'center',
     width: 64,

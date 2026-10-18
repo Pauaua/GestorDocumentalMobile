@@ -61,7 +61,7 @@ function EventRow({ event }: { event: AuditEvent }) {
   const extra = detail(event);
   return (
     <View style={styles.row} testID={`audit-${event.id}`}>
-      <View style={styles.flex}>
+      <View style={styles.event}>
         <AppText variant="bodyStrong">{ACTION_LABELS[event.action] ?? event.action}</AppText>
         <AppText variant="caption">
           {event.actor?.fullName ?? (event.actor ? 'Cuenta eliminada' : 'Sin sesión')}
@@ -128,11 +128,13 @@ export function AuditScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, gap: 2 },
+  event: { flexGrow: 1, flexShrink: 1, flexBasis: 180, gap: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   row: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    rowGap: spacing.xxs,
     gap: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,

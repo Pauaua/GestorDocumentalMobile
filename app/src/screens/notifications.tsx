@@ -92,7 +92,7 @@ export function NotificationsScreen() {
           {data.hasMore && (
             <View style={styles.more}>
               <Bell size={14} color={colors.textMuted} strokeWidth={1.75} />
-              <AppText variant="caption">Se muestran los {data.items.length} avisos más recientes.</AppText>
+              <AppText variant="caption" style={styles.shrink}>Se muestran los {data.items.length} avisos más recientes.</AppText>
             </View>
           )}
         </View>
@@ -103,6 +103,7 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, gap: 2 },
+  shrink: { flexShrink: 1 },
   list: { gap: spacing.sm },
   row: {
     flexDirection: 'row',
