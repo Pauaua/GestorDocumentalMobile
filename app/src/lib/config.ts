@@ -16,7 +16,7 @@ function resolveApiUrl(): string {
 export const API_URL = resolveApiUrl();
 export const API_BASE = `${API_URL}/api/v1`;
 
-export const APP_NAME = 'RTLCO';
+export const APP_NAME = 'Gestor Documental RTLCO';
 
 /** Dominio de los colegios: <slug>.EXPO_PUBLIC_BASE_DOMAIN (p. ej. demo.rtlco.cl). */
 export const BASE_DOMAIN = process.env.EXPO_PUBLIC_BASE_DOMAIN?.trim().toLowerCase() || undefined;

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RTLCO",
+    "name": "Gestor Documental RTLCO",
     "slug": "rtlco",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +26,7 @@
       "output": "single",
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",
-      "name": "RTLCO · Gestor documental escolar",
+      "name": "Gestor Documental RTLCO",
       "shortName": "RTLCO",
       "lang": "es-CL",
       "themeColor": "#C3B1E8",
@@ -57,6 +57,6 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "description": "RTLCO, gestor documental para colegios"
+    "description": "Gestor Documental RTLCO: respaldo con trazabilidad legal de las comunicaciones oficiales de los colegios"
   }
 }
