@@ -1,6 +1,6 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsModule from 'expo-notifications';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { notificationsApi } from '../api/endpoints';
@@ -12,7 +12,17 @@ import { notificationsApi } from '../api/endpoints';
 const CHANNEL_ID = 'documentos';
 let registeredToken: string | null = null;
 
-Notifications.setNotificationHandler({
+/**
+ * Expo Go no trae el push remoto en Android (SDK 53+) y el módulo falla al importarse, lo que tumba la carga de
+ * las rutas. Se carga solo fuera de Expo Go; ahí los avisos siguen llegando a la bandeja y por correo.
+ */
+const Notifications: typeof NotificationsModule | null =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+    ? null
+    : // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('expo-notifications');
+
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
@@ -29,7 +39,7 @@ function projectId(): string | undefined {
 /** Pide permiso y registra el dispositivo en la API. Silencioso si no es posible (emulador, sin permiso). */
 export async function registerForPush(): Promise<void> {
   const id = projectId();
-  if (!Device.isDevice || !id) return;
+  if (!Notifications || !Device.isDevice || !id) return;
   try {
     // En Android 13+ el canal debe existir antes de pedir el permiso.
     if (Platform.OS === 'android') {
@@ -57,16 +67,17 @@ export async function unregisterPush(): Promise<void> {
   await notificationsApi.unregisterPushToken(token).catch(() => undefined);
 }
 
-function openFromResponse(response: Notifications.NotificationResponse | null): void {
+function openFromResponse(response: NotificationsModule.NotificationResponse | null): void {
   const documentId = response?.notification.request.content.data?.documentId;
   if (typeof documentId === 'string') router.push(`/documents/${documentId}`);
 }
 
 /** Al tocar un aviso se abre el documento (también si la app estaba cerrada). Devuelve la limpieza. */
 export function listenToPushTaps(): () => void {
+  if (!Notifications) return () => undefined;
   void Notifications.getLastNotificationResponseAsync().then((r) => {
     openFromResponse(r);
-    if (r) void Notifications.clearLastNotificationResponseAsync();
+    if (r) void Notifications?.clearLastNotificationResponseAsync();
   });
   const sub = Notifications.addNotificationResponseReceivedListener(openFromResponse);
   return () => sub.remove();
