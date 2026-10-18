@@ -1,0 +1,28 @@
+---
+# Variables del despliegue. Los valores del entorno (región, prefijo SSM, buckets)
+# vienen del inventario generado por generar_inventario.sh; los datos dinámicos
+# se leen desde SSM Parameter Store (los publica Terraform).
+
+managed_header: Administrado por Ansible (proyecto_rtlco) - no editar a mano
+app_user: gestor
+app_dir: /opt/gestor-documental
+app_env_file: /etc/gestor-documental/app.env
+app_log_dir: /var/log/gestor-documental
+app_port: 3000
+log_level: info
+rate_limit_max: 1200
+keep_releases: 3
+nodejs_version: "20.20.2"
+
+artifact_local_path: "{{ playbook_dir }}/files/gestor-documental.tar.gz"
+artifact_object_key: releases/gestor-documental.tar.gz
+
+# Solo con -t seed -e run_seed=true se cargan los datos de prueba.
+run_seed: false
+
+# --- Leídos desde SSM Parameter Store (lookup en el controlador) ---
+# Los secretos (DATABASE_URL, JWT) NO pasan por Ansible: la app los lee en runtime con su rol IAM.
+artifact_bucket: "{{ lookup('amazon.aws.aws_ssm', ssm_parameter_prefix ~ '/artifact_bucket', region=aws_region) }}"
+public_url: "{{ lookup('amazon.aws.aws_ssm', ssm_parameter_prefix ~ '/public_url', region=aws_region) }}"
+ssm_s3_bucket: "{{ lookup('amazon.aws.aws_ssm', ssm_parameter_prefix ~ '/s3_bucket', region=aws_region) }}"
+ssm_cors_origins: "{{ lookup('amazon.aws.aws_ssm', ssm_parameter_prefix ~ '/cors_origins', region=aws_region) }}"

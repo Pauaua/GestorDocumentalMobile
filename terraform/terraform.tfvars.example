@@ -1,0 +1,46 @@
+# Copia este archivo a terraform.tfvars y ajusta los valores.
+#   cp terraform.tfvars.example terraform.tfvars
+
+aws_region  = "us-east-1"
+environment = "prod"
+
+# ---------- Publicación ----------
+# Sin dominio: la app queda en http://<DNS del ALB> (sin ACM ni Route 53).
+domain_name = ""
+# Con dominio propio en Route 53 (HTTPS con ACM validado por DNS):
+# domain_name       = "app.rtlco.cl"
+# hosted_zone_name  = "rtlco.cl"   # o hosted_zone_id = "Z0123456789ABC"
+# create_api_record = true                # crea api.app.rtlco.cl
+# Multi-tenant: cada colegio entra por <slug>.rtlco.cl (certificado y DNS comodín *.rtlco.cl).
+# tenant_base_domain = "rtlco.cl"
+
+# ---------- Alertas ----------
+alert_email = "direccion@rtlco.cl"
+
+# ---------- AWS Academy (Learner Lab) ----------
+# No permite crear roles IAM: se reutiliza el instance profile del laboratorio.
+# existing_instance_profile = "LabInstanceProfile"
+
+# ---------- Cómputo ----------
+instance_type        = "t3.micro"
+asg_min_size         = 2
+asg_desired_capacity = 2
+asg_max_size         = 6
+cpu_target_value     = 60
+
+# ---------- Base de datos ----------
+db_instance_class      = "db.t3.micro"
+db_multi_az            = true
+db_deletion_protection = false # true en producción real
+db_skip_final_snapshot = true  # false en producción real
+
+# ---------- Red ----------
+single_nat_gateway = true # false = un NAT por AZ (más disponibilidad, más costo)
+# enable_nat_gateway = false  # modo económico sin NAT (~USD 33/mes menos). Ver perfiles/ y docs/costos.md
+
+# ---------- Correo de avisos (Amazon SES) ----------
+# mail_from_domain = "rtlco.cl"   # verifica el dominio con DKIM en la hosted zone; vacío = solo log
+
+# ---------- Prueba de carga ----------
+# JMeter genera todo el tráfico desde una sola IP: sube el límite durante la prueba.
+# rate_limit_max = 20000

@@ -1,0 +1,404 @@
+---
+# =============================================================================
+# Despliegue del RTLCO en las EC2 del ASG.
+#
+# Conexión: SSM Session Manager (amazon.aws.aws_ssm) — sin puerto 22 ni bastión.
+# Idempotente: se puede ejecutar las veces que se quiera.
+#
+#   ./generar_inventario.sh
+#   ansible-playbook playbook.yml                   # despliegue completo
+#   ansible-playbook playbook.yml -t deploy,config  # solo código y configuración
+#   ansible-playbook playbook.yml -t seed -e run_seed=true   # carga datos de prueba
+#
+# Tags: artifact, base, node, user, deploy, migrate, seed, cloudwatch, config,
+#       service, verify, cleanup
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) Controlador: publica el artefacto en el bucket de artefactos.
+#    Las instancias nuevas que cree el ASG lo descargan en su user data.
+# -----------------------------------------------------------------------------
+- name: Publicar artefacto y configuración en S3
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [artifact, deploy]
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Verificar que existe el artefacto (npm run build:artifact)
+      ansible.builtin.stat:
+        path: "{{ artifact_local_path }}"
+        checksum_algorithm: sha256
+      register: artifact_stat
+
+    - name: Fallar si falta el artefacto
+      ansible.builtin.assert:
+        that: artifact_stat.stat.exists
+        fail_msg: "No existe {{ artifact_local_path }}. Ejecuta 'npm run build:artifact' en backend/."
+        quiet: true
+
+    - name: Subir el artefacto al bucket de artefactos
+      amazon.aws.s3_object:
+        bucket: "{{ artifact_bucket }}"
+        object: "{{ artifact_object_key }}"
+        src: "{{ artifact_local_path }}"
+        mode: put
+        overwrite: different
+        region: "{{ aws_region }}"
+        encrypt: true
+        metadata:
+          sha256: "{{ artifact_stat.stat.checksum }}"
+
+    - name: Subir la configuración de CloudWatch Agent
+      amazon.aws.s3_object:
+        bucket: "{{ artifact_bucket }}"
+        object: config/cloudwatch-agent-config.json
+        src: "{{ playbook_dir }}/files/cloudwatch-agent-config.json"
+        mode: put
+        overwrite: different
+        region: "{{ aws_region }}"
+        encrypt: true
+
+# -----------------------------------------------------------------------------
+# 2) Todas las instancias: sistema base, Node.js, usuario, release nuevo
+#    (sin activarlo), migraciones una sola vez y CloudWatch Agent.
+# -----------------------------------------------------------------------------
+- name: Preparar instancias y release
+  hosts: gestor_documental
+  become: true
+  gather_facts: true
+  # linear (no free): garantiza que las tareas run_once se ejecuten una sola vez para todo el grupo.
+  strategy: linear
+  vars_files:
+    - vars.yml
+  pre_tasks:
+    - name: Calcular el identificador del release (sha256 del artefacto)
+      ansible.builtin.stat:
+        path: "{{ artifact_local_path }}"
+        checksum_algorithm: sha256
+      delegate_to: localhost
+      become: false
+      run_once: true
+      register: artifact_checksum
+      tags: [always]
+
+    - name: Definir rutas del release
+      ansible.builtin.set_fact:
+        release_id: "{{ artifact_checksum.stat.checksum[:12] }}"
+        release_dir: "{{ app_dir }}/releases/{{ artifact_checksum.stat.checksum[:12] }}"
+      tags: [always]
+
+  tasks:
+    # ---------- base ----------
+    - name: Instalar paquetes base (Python para Ansible, SSM Agent, utilidades)
+      ansible.builtin.dnf:
+        name:
+          - python3
+          - python3-pip
+          - tar
+          - gzip
+          - xz
+          - acl
+          - logrotate
+          - amazon-ssm-agent
+        state: present
+      tags: [base]
+
+    - name: Asegurar el agente SSM habilitado
+      ansible.builtin.systemd_service:
+        name: amazon-ssm-agent
+        enabled: true
+        state: started
+      tags: [base]
+
+    # ---------- Node.js 20 LTS ----------
+    - name: Descargar y verificar (SHA-256) Node.js {{ nodejs_version }}
+      ansible.builtin.get_url:
+        url: "https://nodejs.org/dist/v{{ nodejs_version }}/node-v{{ nodejs_version }}-linux-x64.tar.xz"
+        dest: "/tmp/node-v{{ nodejs_version }}-linux-x64.tar.xz"
+        checksum: "sha256:https://nodejs.org/dist/v{{ nodejs_version }}/SHASUMS256.txt"
+        mode: "0644"
+      tags: [node]
+
+    - name: Crear directorio de Node.js
+      ansible.builtin.file:
+        path: "/opt/nodejs-v{{ nodejs_version }}"
+        state: directory
+        mode: "0755"
+      tags: [node]
+
+    - name: Descomprimir Node.js
+      ansible.builtin.unarchive:
+        src: "/tmp/node-v{{ nodejs_version }}-linux-x64.tar.xz"
+        dest: "/opt/nodejs-v{{ nodejs_version }}"
+        remote_src: true
+        extra_opts: [--strip-components=1]
+        creates: "/opt/nodejs-v{{ nodejs_version }}/bin/node"
+      tags: [node]
+
+    - name: Enlazar node, npm y npx en /usr/local/bin
+      ansible.builtin.file:
+        src: "/opt/nodejs-v{{ nodejs_version }}/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+        force: true
+      loop: [node, npm, npx]
+      tags: [node]
+
+    # ---------- usuario del servicio ----------
+    - name: Crear grupo del servicio
+      ansible.builtin.group:
+        name: "{{ app_user }}"
+        system: true
+      tags: [user]
+
+    - name: Crear usuario del servicio (sin shell de login)
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        group: "{{ app_user }}"
+        system: true
+        home: "{{ app_dir }}"
+        create_home: false
+        shell: /sbin/nologin
+      tags: [user]
+
+    - name: Crear directorios de la aplicación
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ app_user }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ app_dir }}", owner: "{{ app_user }}", mode: "0755" }
+        - { path: "{{ app_dir }}/releases", owner: "{{ app_user }}", mode: "0755" }
+        - { path: /etc/gestor-documental, owner: root, mode: "0750" }
+        - { path: "{{ app_log_dir }}", owner: "{{ app_user }}", mode: "0750" }
+      tags: [user, deploy]
+
+    # ---------- release (se prepara sin activarlo) ----------
+    - name: Crear directorio del release {{ release_id }}
+      ansible.builtin.file:
+        path: "{{ release_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+      tags: [deploy]
+
+    - name: Desplegar el artefacto de files/ en el release
+      ansible.builtin.unarchive:
+        src: "{{ artifact_local_path }}"
+        dest: "{{ release_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        extra_opts: [--strip-components=1]
+        creates: "{{ release_dir }}/package.json"
+      tags: [deploy]
+
+    - name: Instalar dependencias de producción (npm ci + prisma generate)
+      ansible.builtin.command:
+        argv: [runuser, -u, "{{ app_user }}", --, env, "HOME={{ app_dir }}", "PATH=/usr/local/bin:/usr/bin:/bin",
+               npm, ci, --omit=dev, --no-audit, --no-fund]
+        chdir: "{{ release_dir }}"
+        creates: "{{ release_dir }}/node_modules/.prisma/client/index.js"
+      tags: [deploy]
+
+    - name: Renderizar variables de entorno (desde SSM Parameter Store)
+      ansible.builtin.template:
+        src: app.env.j2
+        dest: "{{ app_env_file }}"
+        owner: root
+        group: "{{ app_user }}"
+        mode: "0640"
+      notify: Reiniciar gestor-documental
+      tags: [config, deploy, migrate]
+
+    # ---------- migraciones: una sola vez para todo el grupo ----------
+    - name: Ejecutar prisma migrate deploy (run_once)
+      ansible.builtin.command:
+        argv: [runuser, -u, "{{ app_user }}", --, bash, -c,
+               "set -a; . {{ app_env_file }}; set +a; exec /usr/local/bin/node dist/src/scripts/migrate.js"]
+        chdir: "{{ release_dir }}"
+      run_once: true
+      register: migrate_result
+      changed_when: "'No pending migrations' not in migrate_result.stdout"
+      tags: [migrate, deploy]
+
+    - name: Cargar datos de prueba (seed) una sola vez
+      ansible.builtin.command:
+        argv: [runuser, -u, "{{ app_user }}", --, bash, -c,
+               "set -a; . {{ app_env_file }}; set +a; exec /usr/local/bin/node dist/prisma/seed.js"]
+        chdir: "{{ release_dir }}"
+      run_once: true
+      when: run_seed | bool
+      register: seed_result
+      changed_when: true
+      tags: [seed, never]
+
+    # ---------- CloudWatch Agent ----------
+    - name: Instalar CloudWatch Agent
+      ansible.builtin.dnf:
+        name: amazon-cloudwatch-agent
+        state: present
+      tags: [cloudwatch]
+
+    - name: Copiar configuración de CloudWatch Agent (logs de la app y métricas)
+      ansible.builtin.copy:
+        src: cloudwatch-agent-config.json
+        dest: /opt/aws/amazon-cloudwatch-agent/etc/gestor-documental.json
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Recargar CloudWatch Agent
+      tags: [cloudwatch]
+
+    - name: Rotación de logs de la aplicación
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/gestor-documental
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          {{ app_log_dir }}/*.log {
+              daily
+              rotate 7
+              compress
+              missingok
+              notifempty
+              copytruncate
+          }
+      tags: [cloudwatch]
+
+  handlers:
+    - name: Recargar CloudWatch Agent
+      ansible.builtin.command:
+        argv: [/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl, -a, fetch-config, -m, ec2, -s,
+               -c, "file:/opt/aws/amazon-cloudwatch-agent/etc/gestor-documental.json"]
+      changed_when: true
+
+    - name: Reiniciar gestor-documental
+      ansible.builtin.systemd_service:
+        name: gestor-documental
+        state: restarted
+      # En la primera ejecución el servicio aún no existe: se arranca en el play 3.
+      failed_when: false
+
+# -----------------------------------------------------------------------------
+# 3) Activación rolling (una instancia a la vez): el ALB siempre tiene
+#    instancias saludables mientras se cambia de versión.
+# -----------------------------------------------------------------------------
+- name: Activar release y verificar salud (rolling)
+  hosts: gestor_documental
+  become: true
+  gather_facts: false
+  serial: 1
+  max_fail_percentage: 0
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Instalar unit de systemd (reinicio automático)
+      ansible.builtin.template:
+        src: gestor-documental.service.j2
+        dest: /etc/systemd/system/gestor-documental.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reiniciar servicio
+      tags: [config, service]
+
+    - name: Activar el release {{ release_id }}
+      ansible.builtin.file:
+        src: "{{ release_dir }}"
+        dest: "{{ app_dir }}/current"
+        state: link
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        force: true
+      notify: Reiniciar servicio
+      tags: [deploy]
+
+    - name: Habilitar el servicio
+      ansible.builtin.systemd_service:
+        name: gestor-documental
+        enabled: true
+        state: started
+        daemon_reload: true
+      tags: [service, deploy]
+
+    - name: Aplicar reinicio pendiente
+      ansible.builtin.meta: flush_handlers
+      tags: [service, deploy, config]
+
+    - name: Verificar /health en la instancia
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        return_content: true
+        status_code: 200
+      register: health
+      retries: 20
+      delay: 5
+      until: health.status == 200
+      tags: [verify, deploy]
+
+    - name: Mostrar estado de salud
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} → {{ health.json.status }} · BD {{ health.json.database }} ·
+          instancia {{ health.json.instanceId }} ({{ health.json.availabilityZone | default('?') }}) ·
+          versión {{ health.json.version }}
+      tags: [verify, deploy]
+
+    - name: Buscar releases antiguos
+      ansible.builtin.find:
+        paths: "{{ app_dir }}/releases"
+        file_type: directory
+      register: old_releases
+      tags: [cleanup, deploy]
+
+    - name: Eliminar releases antiguos (se conservan los 3 más recientes)
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ (old_releases.files | sort(attribute='mtime', reverse=true))[keep_releases:] }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+      when: item.path != release_dir
+      tags: [cleanup, deploy]
+
+  handlers:
+    - name: Reiniciar servicio
+      ansible.builtin.systemd_service:
+        name: gestor-documental
+        state: restarted
+        daemon_reload: true
+
+# -----------------------------------------------------------------------------
+# 4) Verificación externa a través del ALB (y Route 53 si hay dominio).
+# -----------------------------------------------------------------------------
+- name: Verificar la URL pública
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [verify, deploy]
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Consultar /health por la URL pública varias veces (balanceo entre instancias)
+      ansible.builtin.uri:
+        url: "{{ public_url }}/health"
+        return_content: true
+        status_code: 200
+        validate_certs: true
+      register: public_health
+      loop: "{{ range(0, 6) | list }}"
+      loop_control:
+        label: "intento {{ item + 1 }}"
+      retries: 12
+      delay: 10
+      until: public_health.status == 200
+
+    - name: Instancias que respondieron detrás del ALB
+      ansible.builtin.debug:
+        msg: "{{ public_health.results | map(attribute='json.instanceId') | unique | list }}"

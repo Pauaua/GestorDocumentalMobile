@@ -1,0 +1,67 @@
+{
+  "name": "rtlco-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API REST del RTLCO - Gestor documental escolar",
+  "main": "dist/src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand",
+    "prisma:generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "node dist/src/scripts/migrate.js",
+    "seed": "tsx prisma/seed.ts",
+    "seed:prod": "node dist/prisma/seed.js",
+    "build:artifact": "tsx scripts/build-artifact.ts",
+    "postinstall": "prisma generate",
+    "s3:init": "tsx scripts/init-local-s3.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1140.0",
+    "@aws-sdk/client-secrets-manager": "^3.1140.0",
+    "@aws-sdk/client-sesv2": "^3.1140.0",
+    "@aws-sdk/client-ssm": "^3.1140.0",
+    "@aws-sdk/s3-request-presigner": "^3.1140.0",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "prisma": "^6.19.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.14",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^20.19.43",
+    "@types/supertest": "^7.2.1",
+    "aws-sdk-client-mock": "^4.1.0",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "jest": "^29.7.0",
+    "supertest": "^7.3.0",
+    "tar": "^7.5.22",
+    "ts-jest": "^29.4.13",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2"
+  }
+}

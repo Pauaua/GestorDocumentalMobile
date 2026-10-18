@@ -1,0 +1,193 @@
+{
+  "proyecto": "RTLCO - Gestor documental escolar",
+  "suite": "Pruebas funcionales automatizadas (Selenium 4 + pytest)",
+  "ejecucion": {
+    "fecha": "2026-09-24T22:05:57-03:00",
+    "base_url": "http://localhost:3100",
+    "navegador": "Chrome headless",
+    "sistema": "Windows 10",
+    "python": "3.13.12",
+    "duracion_total_s": 56.4
+  },
+  "resumen": {
+    "total": 9,
+    "aprobados": 9,
+    "fallidos": 0,
+    "errores": 0
+  },
+  "casos": [
+    {
+      "id": "CP-01",
+      "requisito": "RF-01 Autenticación: inicio de sesión con credenciales válidas (JWT)",
+      "rol": "director",
+      "pasos": [
+        "Abrir la URL pública",
+        "Ingresar correo director@rtlco.cl y la contraseña",
+        "Presionar 'Ingresar'"
+      ],
+      "resultado_esperado": "Se muestra el inicio con el saludo 'Marcela' y el rol 'Director(a)'",
+      "resultado_obtenido": "Inicio mostrado: 'Buenas noches, Marcela' · rol 'Director(a)'",
+      "estado": "APROBADO",
+      "duracion_s": 1.69,
+      "timestamp": "2026-09-24T22:05:03-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_login_correcto",
+      "observaciones": []
+    },
+    {
+      "id": "CP-02",
+      "requisito": "RF-01 Autenticación: rechazo de credenciales inválidas",
+      "rol": "director",
+      "pasos": [
+        "Abrir la URL pública",
+        "Ingresar el correo del director con una contraseña incorrecta",
+        "Presionar 'Ingresar'"
+      ],
+      "resultado_esperado": "Se muestra 'Correo o contraseña incorrectos' y no se accede a la aplicación",
+      "resultado_obtenido": "Mensaje mostrado: 'Correo o contraseña incorrectos'. Permanece en el login.",
+      "estado": "APROBADO",
+      "duracion_s": 1.7,
+      "timestamp": "2026-09-24T22:05:07-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_login_incorrecto",
+      "observaciones": []
+    },
+    {
+      "id": "CP-03",
+      "requisito": "RF-02 Cargar, clasificar y almacenar documentos (S3 + metadatos en RDS)",
+      "rol": "director",
+      "pasos": [
+        "Iniciar sesión como director",
+        "Ir a 'Subir' y adjuntar un PDF",
+        "Completar título, tipo 'Citación', folio y descripción",
+        "Elegir como destinatario al apoderado Rodrigo Pérez",
+        "Presionar 'Subir documento'"
+      ],
+      "resultado_esperado": "Se abre el detalle con los metadatos y el tipo 'Citación'; el documento queda registrado en la API",
+      "resultado_obtenido": "Documento 'Citación Selenium 1790298310' creado (id 38bc9221-c787-4192-8943-c517b3e50b55), tipo Citación, folio CIT-SEL-98310, 193 bytes en S3, destinatario Rodrigo Pérez Castro",
+      "estado": "APROBADO",
+      "duracion_s": 3.64,
+      "timestamp": "2026-09-24T22:05:13-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_director_sube_y_clasifica_documento",
+      "observaciones": []
+    },
+    {
+      "id": "CP-04",
+      "requisito": "RF-03 Consultar documentos: búsqueda por texto",
+      "rol": "director",
+      "pasos": [
+        "Iniciar sesión como director",
+        "Ir a 'Documentos'",
+        "Escribir 'celulares' en el buscador"
+      ],
+      "resultado_esperado": "Solo aparece el acuerdo ACU-2026-002 sobre uso de celulares",
+      "resultado_obtenido": "De 11 documentos, la búsqueda devolvió ['ACU-2026-002']",
+      "estado": "APROBADO",
+      "duracion_s": 5.35,
+      "timestamp": "2026-09-24T22:05:21-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_busqueda_por_texto",
+      "observaciones": []
+    },
+    {
+      "id": "CP-05",
+      "requisito": "RF-03 Consultar documentos: filtros por tipo y rango de fechas",
+      "rol": "equipo_directivo",
+      "pasos": [
+        "Iniciar sesión como equipo directivo",
+        "Ir a 'Documentos' y elegir el filtro de tipo 'Acta'",
+        "Quitar el tipo, abrir 'Más filtros' y fijar el rango 01-03-2026 a 31-03-2026"
+      ],
+      "resultado_esperado": "Con 'Acta' solo se ven actas; con el rango de marzo solo documentos fechados en marzo de 2026",
+      "resultado_obtenido": "Tipo Acta → ['ACT-2026-005']; rango marzo 2026 → ['ACT-2026-005', 'ACU-2026-002', 'MEM-2026-014']",
+      "estado": "APROBADO",
+      "duracion_s": 7.84,
+      "timestamp": "2026-09-24T22:05:32-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_filtros_por_tipo_y_fecha",
+      "observaciones": []
+    },
+    {
+      "id": "CP-06",
+      "requisito": "RF-04 Descarga autorizada con presigned URL (5 min) y registro de descargas",
+      "rol": "apoderado",
+      "pasos": [
+        "Iniciar sesión como la apoderada Paula Díaz",
+        "Abrir la citación CIT-2026-021 dirigida a ella",
+        "Presionar 'Descargar'"
+      ],
+      "resultado_esperado": "El archivo se descarga y la descarga queda en el registro visible para el equipo directivo",
+      "resultado_obtenido": "Descargado 'citacion-apoderado-5a.pdf' (713 bytes). Registro de descargas: 1 → 2 (último: Paula Díaz Morales)",
+      "estado": "APROBADO",
+      "duracion_s": 4.06,
+      "timestamp": "2026-09-24T22:05:38-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_descarga_autorizada",
+      "observaciones": []
+    },
+    {
+      "id": "CP-07",
+      "requisito": "RF-05 Permisos: un apoderado NO ve ni descarga documentos no autorizados",
+      "rol": "apoderado",
+      "pasos": [
+        "Iniciar sesión como la apoderada Paula Díaz y abrir 'Documentos'",
+        "Intentar abrir por URL directa el oficio OF-2026-003 (solo equipo directivo)",
+        "Pedir a la API la URL de descarga del oficio con el token del apoderado"
+      ],
+      "resultado_esperado": "La lista solo muestra lo autorizado; la URL directa muestra 'No tienes acceso' y la API responde 403",
+      "resultado_obtenido": "Lista del apoderado: ['ACU-2026-002', 'CIT-2026-021']. URL directa al oficio → 'No tienes acceso'. API: detalle 403, download-url 403",
+      "estado": "APROBADO",
+      "duracion_s": 4.04,
+      "timestamp": "2026-09-24T22:05:45-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_apoderado_no_ve_documentos_no_autorizados",
+      "observaciones": []
+    },
+    {
+      "id": "CP-08",
+      "requisito": "RF-05 Permisos: un docente solo ve lo visible para su rol y lo dirigido a él",
+      "rol": "docente",
+      "pasos": [
+        "Iniciar sesión como el docente Felipe Soto",
+        "Abrir 'Documentos'",
+        "Revisar menú y listado"
+      ],
+      "resultado_esperado": "Ve memo, acta, acuerdo y su permiso administrativo; no ve el oficio ni la citación; no tiene opciones de subir ni de usuarios",
+      "resultado_obtenido": "Menú: ['nav-documents', 'nav-home', 'nav-profile']. Documentos visibles: ['ACT-2026-005', 'ACU-2026-002', 'MEM-2026-014', 'PA-2026-011']",
+      "estado": "APROBADO",
+      "duracion_s": 2.7,
+      "timestamp": "2026-09-24T22:05:50-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_docente_solo_ve_lo_que_corresponde",
+      "observaciones": []
+    },
+    {
+      "id": "CP-09",
+      "requisito": "RF-01 Autenticación: cierre de sesión y revocación del refresh token",
+      "rol": "equipo_directivo",
+      "pasos": [
+        "Iniciar sesión como equipo directivo",
+        "Ir a 'Perfil' y presionar 'Cerrar sesión'",
+        "Recargar /documents"
+      ],
+      "resultado_esperado": "Vuelve al login y, al recargar una ruta protegida, sigue en el login (sesión revocada)",
+      "resultado_obtenido": "Tras cerrar sesión se muestra el login; /documents redirige al login",
+      "estado": "APROBADO",
+      "duracion_s": 1.99,
+      "timestamp": "2026-09-24T22:05:55-03:00",
+      "evidencia": null,
+      "detalle_error": null,
+      "prueba": "selenium_test_gestor_documental.py::test_logout",
+      "observaciones": []
+    }
+  ]
+}

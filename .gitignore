@@ -1,0 +1,28 @@
+node_modules/
+dist/
+.expo/
+web-build/
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl.bak
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+# Artefacto (se regenera con npm run build:artifact)
+ansible/files/gestor-documental-*.tar.gz
+!ansible/files/gestor-documental-referencia.tar.gz
+tests/chromedriver*
+
+# Backend
+backend/.artifact/
+app/dist/
+tests/evidencias/

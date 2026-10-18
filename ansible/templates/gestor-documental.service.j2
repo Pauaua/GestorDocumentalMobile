@@ -1,0 +1,31 @@
+# {{ managed_header }}
+[Unit]
+Description=RTLCO - Gestor documental escolar (API REST + web)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_user }}
+WorkingDirectory={{ app_dir }}/current
+EnvironmentFile={{ app_env_file }}
+ExecStart=/usr/local/bin/node dist/src/index.js
+# Reinicio automático ante cualquier caída del proceso.
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+LimitNOFILE=65535
+
+# Endurecimiento
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths={{ app_log_dir }}
+
+[Install]
+WantedBy=multi-user.target

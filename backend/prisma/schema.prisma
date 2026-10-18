@@ -1,0 +1,418 @@
+// Modelo de datos de RTLCO - Gestor documental escolar (multi-colegio)
+// Motor: PostgreSQL sobre Amazon RDS (Multi-AZ). Migraciones versionadas en prisma/migrations.
+//
+// Multi-tenant: cada colegio (School) es un tenant identificado por su slug (subdominio).
+// La identidad (User) es global; el rol vive en la membresía (Membership) de cada colegio.
+
+generator client {
+  provider      = "prisma-client-js"
+  // native: desarrollo local; rhel-openssl-3.0.x: Amazon Linux 2023 en EC2
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  director
+  sostenedor
+  equipo_directivo
+  docente
+  apoderado
+}
+
+enum DocumentStatus {
+  VIGENTE
+  ARCHIVADO
+}
+
+enum NotificationChannel {
+  email
+  push
+}
+
+enum DeliveryStatus {
+  pending
+  sent
+  failed
+}
+
+enum AccountTokenPurpose {
+  reset
+  invite
+}
+
+enum Plan {
+  basico
+  estandar
+  red
+}
+
+/// Red educacional o sostenedor con uno o más colegios.
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  rut       String?  @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  schools School[]            @relation("OrganizationSchools")
+  admins  OrganizationAdmin[]
+
+  @@map("organizations")
+}
+
+/// Colegio (tenant). El slug es el subdominio: <slug>.rtlco.cl
+model School {
+  id             String   @id @default(uuid()) @db.Uuid
+  slug           String   @unique
+  name           String
+  /// Rol Base de Datos del Mineduc.
+  rbd            String?  @unique
+  organizationId String?  @map("organization_id") @db.Uuid
+  plan           Plan     @default(basico)
+  primaryColor   String?  @map("primary_color")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization  Organization?  @relation("OrganizationSchools", fields: [organizationId], references: [id], onDelete: SetNull)
+  memberships   Membership[]
+  documents     Document[]
+  students      Student[]
+  refreshTokens RefreshToken[]
+  notifications Notification[]
+  courses       Course[]
+
+  @@index([organizationId])
+  @@map("schools")
+}
+
+model User {
+  id                 String   @id @default(uuid()) @db.Uuid
+  fullName           String   @map("full_name")
+  rut                String   @unique
+  email              String   @unique
+  passwordHash       String   @map("password_hash")
+  phone              String?
+  /// Bloqueo de la cuenta completa (todas las membresías).
+  isActive           Boolean  @default(true) @map("is_active")
+  /// Superadmin de RTLCO: administra colegios y redes, no ve documentos.
+  isPlatformAdmin    Boolean  @default(false) @map("is_platform_admin")
+  /// Preferencia de la persona: avisos por correo de documentos nuevos.
+  emailNotifications Boolean  @default(true) @map("email_notifications")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  memberships       Membership[]
+  organizationAdmin OrganizationAdmin[]
+  authoredDocuments Document[]          @relation("DocumentAuthor")
+  recipientOf       DocumentRecipient[]
+  downloads         DownloadLog[]
+  refreshTokens     RefreshToken[]
+  students          GuardianStudent[]
+  receipts          DocumentReceipt[]
+  notifications     Notification[]
+  pushTokens        PushToken[]
+  accountTokens     AccountToken[]
+
+  @@map("users")
+}
+
+/// Rol de un usuario dentro de un colegio.
+model Membership {
+  userId    String   @map("user_id") @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  role      Role
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@id([userId, schoolId])
+  @@index([schoolId, role])
+  @@map("memberships")
+}
+
+/// Sostenedor de red: actúa como sostenedor en todos los colegios de la organización.
+model OrganizationAdmin {
+  userId         String       @map("user_id") @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_admins")
+}
+
+model DocumentType {
+  id        Int        @id @default(autoincrement())
+  code      String     @unique
+  name      String
+  documents Document[]
+
+  @@map("document_types")
+}
+
+model Document {
+  id                      String         @id @default(uuid()) @db.Uuid
+  schoolId                String         @map("school_id") @db.Uuid
+  title                   String
+  description             String?
+  documentTypeId          Int            @map("document_type_id")
+  folioNumber             String?        @map("folio_number")
+  documentDate            DateTime       @map("document_date") @db.Date
+  authorId                String         @map("author_id") @db.Uuid
+  s3Key                   String         @unique @map("s3_key")
+  fileName                String         @map("file_name")
+  mimeType                String         @map("mime_type")
+  fileSize                Int            @map("file_size")
+  status                  DocumentStatus @default(VIGENTE)
+  isDeleted               Boolean        @default(false) @map("is_deleted")
+  /// La audiencia debe confirmar la recepción (p. ej. citaciones).
+  requiresAcknowledgement Boolean        @default(false) @map("requires_acknowledgement")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+
+  school        School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  documentType  DocumentType         @relation(fields: [documentTypeId], references: [id])
+  author        User                 @relation("DocumentAuthor", fields: [authorId], references: [id])
+  visibility    DocumentVisibility[]
+  recipients    DocumentRecipient[]
+  downloads     DownloadLog[]
+  receipts      DocumentReceipt[]
+  notifications Notification[]
+  courses       DocumentCourse[]
+
+  @@index([schoolId, status, isDeleted])
+  @@index([schoolId, documentDate])
+  @@index([documentTypeId])
+  @@index([authorId])
+  @@map("documents")
+}
+
+/// Roles que pueden ver el documento (además del equipo directivo, que ve todo).
+model DocumentVisibility {
+  documentId String   @map("document_id") @db.Uuid
+  role       Role
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, role])
+  @@index([role])
+  @@map("document_visibility")
+}
+
+/// Destinatarios específicos (p. ej. una citación dirigida a un apoderado).
+model DocumentRecipient {
+  documentId String   @map("document_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, userId])
+  @@index([userId])
+  @@map("document_recipients")
+}
+
+/// Curso del colegio (p. ej. "3° Básico B"). Sirve como audiencia: los apoderados de sus estudiantes.
+model Course {
+  id        String           @id @default(uuid()) @db.Uuid
+  schoolId  String           @map("school_id") @db.Uuid
+  name      String
+  createdAt DateTime         @default(now()) @map("created_at")
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students  Student[]
+  documents DocumentCourse[]
+
+  @@unique([schoolId, name])
+  @@map("courses")
+}
+
+/// Cursos destinatarios de un documento.
+model DocumentCourse {
+  documentId String   @map("document_id") @db.Uuid
+  courseId   String   @map("course_id") @db.Uuid
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, courseId])
+  @@index([courseId])
+  @@map("document_courses")
+}
+
+model Student {
+  id        String            @id @default(uuid()) @db.Uuid
+  schoolId  String            @map("school_id") @db.Uuid
+  fullName  String            @map("full_name")
+  rut       String
+  courseId  String            @map("course_id") @db.Uuid
+  school    School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  course    Course            @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  guardians GuardianStudent[]
+
+  @@unique([schoolId, rut])
+  @@index([courseId])
+  @@map("students")
+}
+
+model GuardianStudent {
+  guardianId   String  @map("guardian_id") @db.Uuid
+  studentId    String  @map("student_id") @db.Uuid
+  relationship String  @default("apoderado")
+  guardian     User    @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  student      Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([guardianId, studentId])
+  @@map("guardian_students")
+}
+
+model DownloadLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  documentId   String   @map("document_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  downloadedAt DateTime @default(now()) @map("downloaded_at")
+  ip           String?
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, downloadedAt])
+  @@map("download_logs")
+}
+
+/// Refresh tokens (JWT) con rotación: se guarda el jti y se revoca al usarse.
+/// schoolId nulo = sesión de la plataforma (superadmin).
+model RefreshToken {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  schoolId  String?   @map("school_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  userAgent String?   @map("user_agent")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school    School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Acuse de recibo: primera apertura y confirmación explícita (respaldo ante reclamos o fiscalización).
+model DocumentReceipt {
+  documentId     String    @map("document_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  viewedAt       DateTime  @default(now()) @map("viewed_at")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  ip             String?
+  userAgent      String?   @map("user_agent")
+  document       Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, userId])
+  @@index([userId])
+  @@map("document_receipts")
+}
+
+/// Bandeja de notificaciones de la app (por colegio).
+model Notification {
+  id         String    @id @default(uuid()) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  documentId String?   @map("document_id") @db.Uuid
+  title      String
+  body       String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  readAt     DateTime? @map("read_at")
+  school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, schoolId, createdAt])
+  @@map("notifications")
+}
+
+/// Envío por correo o push (outbox): un worker los reclama con SKIP LOCKED y reintenta con espera creciente.
+model NotificationDelivery {
+  id             String              @id @default(uuid()) @db.Uuid
+  notificationId String              @map("notification_id") @db.Uuid
+  channel        NotificationChannel
+  status         DeliveryStatus      @default(pending)
+  attempts       Int                 @default(0)
+  lastError      String?             @map("last_error")
+  nextAttemptAt  DateTime            @default(now()) @map("next_attempt_at")
+  lockedUntil    DateTime?           @map("locked_until")
+  sentAt         DateTime?           @map("sent_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  notification   Notification        @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@map("notification_deliveries")
+}
+
+/// Token de Expo Push de un dispositivo.
+model PushToken {
+  token      String   @id
+  userId     String   @map("user_id") @db.Uuid
+  platform   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  lastSeenAt DateTime @updatedAt @map("last_seen_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+/// Invitación (activar cuenta) o recuperación de contraseña. Solo se guarda el hash SHA-256 del token.
+model AccountToken {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  /// Colegio desde el que se emitió (para el enlace del correo).
+  schoolId  String?             @map("school_id") @db.Uuid
+  purpose   AccountTokenPurpose
+  tokenHash String              @unique @map("token_hash")
+  expiresAt DateTime            @map("expires_at")
+  usedAt    DateTime?           @map("used_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account_tokens")
+}
+
+/// Correos transaccionales (invitaciones, recuperación de contraseña): mismo outbox con reintentos.
+model OutboundEmail {
+  id            String         @id @default(uuid()) @db.Uuid
+  to            String
+  subject       String
+  text          String
+  html          String
+  status        DeliveryStatus @default(pending)
+  attempts      Int            @default(0)
+  lastError     String?        @map("last_error")
+  nextAttemptAt DateTime       @default(now()) @map("next_attempt_at")
+  lockedUntil   DateTime?      @map("locked_until")
+  sentAt        DateTime?      @map("sent_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@map("outbound_emails")
+}
+
+/// Bitácora de auditoría. Sin claves foráneas: los eventos se conservan aunque se borre lo auditado.
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  schoolId   String?  @map("school_id") @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([schoolId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_events")
+}
